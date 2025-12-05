@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: Server/Dockerfile
+    container_name: sorting-server
+    ports:
+      - "5247:5247"
+    environment:
+      - PORT=5247
+      - ASPNETCORE_URLS=http://0.0.0.0:5247
+      - ASPNETCORE_ENVIRONMENT=Development
+    volumes:
+      - server-data:/app/data
+      - server-logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - sorting-network
+
+  client:
+    build:
+      context: .
+      dockerfile: Client/Dockerfile
+    container_name: sorting-client
+    environment:
+      - SERVER_URL=http://server:5247
+    depends_on:
+      - server
+    stdin_open: true
+    tty: true
+    networks:
+      - sorting-network
+    restart: "no"
+
+volumes:
+  server-data:
+    driver: local
+  server-logs:
+    driver: local
+
+networks:
+  sorting-network:
+    driver: bridge
+
