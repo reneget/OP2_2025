@@ -5,6 +5,7 @@ namespace Server.Modules.Sorting;
 /// </summary>
 public class CombSortModule
 {
+    // Коэффициент сжатия для алгоритма расчёстки
     private const double ShrinkFactor = 1.3;
 
     /// <summary>
@@ -26,6 +27,7 @@ public class CombSortModule
 
         while (gap > 1 || swapped)
         {
+            // Уменьшаем gap на каждом проходе
             gap = Math.Max(1, (int)(gap / ShrinkFactor));
             swapped = false;
 

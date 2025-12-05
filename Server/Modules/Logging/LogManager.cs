@@ -20,9 +20,6 @@ public class LogManager
         }
     }
 
-    /// <summary>
-    /// Записывает лог в файл
-    /// </summary>
     public void Log(LogLevel level, string message, string? userId = null)
     {
         var logEntry = new LogEntry
@@ -31,6 +28,25 @@ public class LogManager
             Level = level,
             Message = message,
             UserId = userId
+        };
+
+        WriteLogToFile(logEntry);
+    }
+
+    public void LogSortOperation(string message, int[] inputArray, int[] outputArray, string? userId = null)
+    {
+        var inputStr = string.Join(", ", inputArray);
+        var outputStr = string.Join(", ", outputArray);
+        var fullMessage = $"{message} | Input: [{inputStr}] | Output: [{outputStr}]";
+
+        var logEntry = new LogEntry
+        {
+            Timestamp = DateTime.UtcNow,
+            Level = LogLevel.INFO,
+            Message = fullMessage,
+            UserId = userId,
+            InputArray = inputArray,
+            OutputArray = outputArray
         };
 
         WriteLogToFile(logEntry);
@@ -82,6 +98,13 @@ public class LogManager
                          $"{entry.Message}{Environment.NewLine}";
 
             File.AppendAllText(logFile, logLine, Encoding.UTF8);
+            
+            // Массивы записываются на отдельной строке для удобного парсинга
+            if (entry.InputArray != null && entry.OutputArray != null)
+            {
+                var arrayLine = $"  Arrays: Input=[{string.Join(", ", entry.InputArray)}] Output=[{string.Join(", ", entry.OutputArray)}]{Environment.NewLine}";
+                File.AppendAllText(logFile, arrayLine, Encoding.UTF8);
+            }
         }
     }
 
@@ -93,16 +116,46 @@ public class LogManager
             return logs;
 
         var lines = File.ReadAllLines(filePath);
-        foreach (var line in lines)
+        for (int i = 0; i < lines.Length; i++)
         {
-            var entry = ParseLogLine(line);
+            var entry = ParseLogLine(lines[i]);
             if (entry != null)
             {
+                // Проверяем, есть ли следующая строка с массивами
+                if (i + 1 < lines.Length && lines[i + 1].Trim().StartsWith("Arrays:"))
+                {
+                    ParseArraysFromLine(lines[i + 1], entry);
+                    i++;
+                }
                 logs.Add(entry);
             }
         }
 
         return logs;
+    }
+
+    private void ParseArraysFromLine(string line, LogEntry entry)
+    {
+        try
+        {
+            var inputMatch = System.Text.RegularExpressions.Regex.Match(line, @"Input=\[([^\]]+)\]");
+            var outputMatch = System.Text.RegularExpressions.Regex.Match(line, @"Output=\[([^\]]+)\]");
+
+            if (inputMatch.Success)
+            {
+                var inputStr = inputMatch.Groups[1].Value;
+                entry.InputArray = inputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+            }
+
+            if (outputMatch.Success)
+            {
+                var outputStr = outputMatch.Groups[1].Value;
+                entry.OutputArray = outputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+            }
+        }
+        catch
+        {
+        }
     }
 
     private LogEntry? ParseLogLine(string line)
@@ -159,14 +212,13 @@ public enum LogLevel
     ERROR
 }
 
-/// <summary>
-/// Запись в логе
-/// </summary>
 public class LogEntry
 {
     public DateTime Timestamp { get; set; }
     public LogLevel Level { get; set; }
     public string Message { get; set; } = string.Empty;
     public string? UserId { get; set; }
+    public int[]? InputArray { get; set; }
+    public int[]? OutputArray { get; set; }
 }
 

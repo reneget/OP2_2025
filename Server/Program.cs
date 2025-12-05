@@ -10,12 +10,25 @@ using Server.Modules.Sorting;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Настройка сервисов
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:8080",
+                "http://localhost:3000",
+                "http://127.0.0.1:8080",
+                "http://127.0.0.1:3000"
+              )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
+    });
+});
 
-// Настройка Swagger/OpenAPI
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -59,27 +72,25 @@ var logManager = new LogManager(logDirectory);
 var dbManager = new DBManager();
 var combSortModule = new CombSortModule();
 
-// Регистрируем модули как Singleton
 builder.Services.AddSingleton(logManager);
 builder.Services.AddSingleton(dbManager);
 builder.Services.AddSingleton(combSortModule);
 
 var app = builder.Build();
 
+app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Настройка Swagger UI
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/swagger/v1/swagger.json", "Sorting Service API v1");
-    c.RoutePrefix = "swagger"; // Доступ по http://localhost:5247/swagger
+    c.RoutePrefix = "swagger";
     c.DocumentTitle = "Sorting Service API Documentation";
-    c.DefaultModelsExpandDepth(-1); // Скрыть модели по умолчанию
+    c.DefaultModelsExpandDepth(-1);
 });
 
-// Подключение к БД
 if (!dbManager.ConnectToDB(dbPath))
 {
     logManager.Log(ServerLogLevel.ERROR, $"Failed to connect to database at {dbPath}");
@@ -90,7 +101,6 @@ if (!dbManager.ConnectToDB(dbPath))
 
 logManager.Log(ServerLogLevel.INFO, "Server started successfully");
 
-// API endpoints
 app.MapGet("/", () => 
 {
     var swaggerUrl = "/swagger";
@@ -99,7 +109,6 @@ app.MapGet("/", () =>
            $"Open {swaggerUrl} in your browser to view interactive API documentation.";
 });
 
-// Сортировка
 app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServices] CombSortModule sortModule, [FromServices] LogManager logger, HttpContext context) =>
 {
     var username = context.User.Identity?.Name ?? "unknown";
@@ -112,11 +121,10 @@ app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServi
             return Results.BadRequest(new { error = "Array cannot be empty" });
         }
 
-        logger.Log(ServerLogLevel.INFO, $"Sorting array of {request.Array.Length} elements", username);
-        
         var sortedArray = sortModule.Sort(request.Array, request.Ascending ?? true);
         
-        logger.Log(ServerLogLevel.INFO, "Sorting completed successfully", username);
+        // Сохраняем входной и выходной массивы в лог
+        logger.LogSortOperation($"Sorted array ({request.Array.Length} elements)", request.Array, sortedArray, username);
         
         return Results.Ok(new SortResponse
         {
@@ -132,7 +140,6 @@ app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServi
     }
 });
 
-// Получение логов
 app.MapGet("/api/logs", [Authorize] (
     [FromQuery] DateTime? from,
     [FromQuery] DateTime? to,
@@ -162,7 +169,9 @@ app.MapGet("/api/logs", [Authorize] (
                 l.Timestamp,
                 Level = l.Level.ToString(),
                 l.Message,
-                l.UserId
+                l.UserId,
+                InputArray = l.InputArray,
+                OutputArray = l.OutputArray
             })
         });
     }
@@ -173,7 +182,6 @@ app.MapGet("/api/logs", [Authorize] (
     }
 });
 
-// Аутентификация
 app.MapPost("/api/login", async ([FromBody] LoginRequest request, [FromServices] DBManager db, [FromServices] LogManager logger, HttpContext context) =>
 {
     if (string.IsNullOrEmpty(request.Login) || string.IsNullOrEmpty(request.Password))
@@ -222,7 +230,6 @@ app.MapGet("/api/check_user", [Authorize] (HttpContext context, [FromServices] L
     return Results.Ok(new { username });
 });
 
-// Обработка завершения работы
 app.Lifetime.ApplicationStopping.Register(() =>
 {
     logManager.Log(ServerLogLevel.INFO, "Server is shutting down");
@@ -232,10 +239,6 @@ app.Lifetime.ApplicationStopping.Register(() =>
 var port = Environment.GetEnvironmentVariable("PORT") ?? builder.Configuration["Server:Port"] ?? "5247";
 app.Run($"http://0.0.0.0:{port}");
 
-// DTOs
-/// <summary>
-/// Запрос на сортировку массива
-/// </summary>
 public class SortRequest
 {
     /// <summary>

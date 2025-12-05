@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Сортировка расчёсткой - Веб-клиент</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1>🔧 Сортировка расчёсткой</h1>
+            <p class="subtitle">Веб-клиент для сервиса сортировки</p>
+        </header>
+
+        <!-- Экран входа/регистрации -->
+        <div id="auth-screen" class="screen active">
+            <div class="auth-container">
+                <div class="auth-tabs">
+                    <button class="tab-btn active" data-tab="login">Вход</button>
+                    <button class="tab-btn" data-tab="signup">Регистрация</button>
+                </div>
+
+                <div id="login-form" class="auth-form active">
+                    <h2>Вход в систему</h2>
+                    <form id="loginForm">
+                        <div class="form-group">
+                            <label for="login-username">Логин:</label>
+                            <input type="text" id="login-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="login-password">Пароль:</label>
+                            <input type="password" id="login-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Войти</button>
+                    </form>
+                    <div id="login-error" class="error-message"></div>
+                </div>
+
+                <div id="signup-form" class="auth-form">
+                    <h2>Регистрация</h2>
+                    <form id="signupForm">
+                        <div class="form-group">
+                            <label for="signup-username">Логин:</label>
+                            <input type="text" id="signup-username" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="signup-password">Пароль:</label>
+                            <input type="password" id="signup-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Зарегистрироваться</button>
+                    </form>
+                    <div id="signup-error" class="error-message"></div>
+                    <div id="signup-success" class="success-message"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Главный экран после входа -->
+        <div id="main-screen" class="screen">
+            <div class="user-info">
+                <span>Пользователь: <strong id="username-display"></strong></span>
+                <button id="logout-btn" class="btn btn-secondary">Выйти</button>
+            </div>
+
+            <div class="main-content">
+                <!-- Секция сортировки -->
+                <section class="card">
+                    <h2>Сортировка массива</h2>
+                    <form id="sort-form">
+                        <div class="form-group">
+                            <label for="array-input">Введите числа через пробел:</label>
+                            <input type="text" id="array-input" placeholder="5 2 8 1 9 3" required>
+                            <small>Пример: 5 2 8 1 9 3</small>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="radio" name="sort-direction" value="ascending" checked>
+                                По возрастанию
+                            </label>
+                            <label>
+                                <input type="radio" name="sort-direction" value="descending">
+                                По убыванию
+                            </label>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Отсортировать</button>
+                    </form>
+                    <div id="sort-result" class="result-container"></div>
+                </section>
+
+                <!-- Секция просмотра логов -->
+                <section class="card">
+                    <h2>Просмотр логов</h2>
+                    <div class="form-group">
+                        <label for="log-period">Период:</label>
+                        <select id="log-period">
+                            <option value="1">Последние 24 часа</option>
+                            <option value="7" selected>Последняя неделя</option>
+                            <option value="30">Последний месяц</option>
+                            <option value="all">Все логи</option>
+                        </select>
+                    </div>
+                    <button id="load-logs-btn" class="btn btn-primary">Загрузить логи</button>
+                    <div id="logs-container" class="logs-container"></div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <script src="/config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
+
