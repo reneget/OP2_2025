@@ -1,204 +1,153 @@
-using System.Text;
+using Microsoft.Data.Sqlite;
+using Server.Modules.Database;
 
 namespace Server.Modules.Logging;
 
-/// <summary>
-/// Менеджер логирования с хранением на сервере
-/// </summary>
 public class LogManager
 {
-    private readonly string _logDirectory;
-    private readonly object _lockObject = new object();
-    private const string LogFileNameFormat = "app_{0:yyyy-MM-dd}.log";
+    private readonly DBManager _dbManager;
 
-    public LogManager(string logDirectory = "./logs")
+    public LogManager(DBManager dbManager)
     {
-        _logDirectory = logDirectory;
-        if (!Directory.Exists(_logDirectory))
-        {
-            Directory.CreateDirectory(_logDirectory);
-        }
+        _dbManager = dbManager;
     }
 
     public void Log(LogLevel level, string message, string? userId = null)
     {
-        var logEntry = new LogEntry
-        {
-            Timestamp = DateTime.UtcNow,
-            Level = level,
-            Message = message,
-            UserId = userId
-        };
+        var connection = _dbManager.GetConnection();
+        if (connection == null)
+            return;
 
-        WriteLogToFile(logEntry);
+        var query = @"INSERT INTO logs (Timestamp, Level, Message, UserId) 
+                     VALUES (@timestamp, @level, @message, @userId)";
+
+        try
+        {
+            using var command = new SqliteCommand(query, connection);
+            command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
+            command.Parameters.AddWithValue("@level", level.ToString());
+            command.Parameters.AddWithValue("@message", message);
+            command.Parameters.AddWithValue("@userId", userId ?? (object)DBNull.Value);
+            command.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error writing log: {ex.Message}");
+        }
     }
 
     public void LogSortOperation(string message, int[] inputArray, int[] outputArray, string? userId = null)
     {
-        var inputStr = string.Join(", ", inputArray);
-        var outputStr = string.Join(", ", outputArray);
-        var fullMessage = $"{message} | Input: [{inputStr}] | Output: [{outputStr}]";
+        var connection = _dbManager.GetConnection();
+        if (connection == null)
+            return;
 
-        var logEntry = new LogEntry
+        var inputStr = string.Join(",", inputArray);
+        var outputStr = string.Join(",", outputArray);
+        var fullMessage = $"{message} | Input: [{string.Join(", ", inputArray)}] | Output: [{string.Join(", ", outputArray)}]";
+
+        var query = @"INSERT INTO logs (Timestamp, Level, Message, UserId, InputArray, OutputArray) 
+                     VALUES (@timestamp, @level, @message, @userId, @inputArray, @outputArray)";
+
+        try
         {
-            Timestamp = DateTime.UtcNow,
-            Level = LogLevel.INFO,
-            Message = fullMessage,
-            UserId = userId,
-            InputArray = inputArray,
-            OutputArray = outputArray
-        };
-
-        WriteLogToFile(logEntry);
+            using var command = new SqliteCommand(query, connection);
+            command.Parameters.AddWithValue("@timestamp", DateTime.UtcNow);
+            command.Parameters.AddWithValue("@level", LogLevel.INFO.ToString());
+            command.Parameters.AddWithValue("@message", fullMessage);
+            command.Parameters.AddWithValue("@userId", userId ?? (object)DBNull.Value);
+            command.Parameters.AddWithValue("@inputArray", inputStr);
+            command.Parameters.AddWithValue("@outputArray", outputStr);
+            command.ExecuteNonQuery();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error writing sort log: {ex.Message}");
+        }
     }
 
-    /// <summary>
-    /// Получает логи за указанный период
-    /// </summary>
     public List<LogEntry> GetLogs(DateTime? from = null, DateTime? to = null, LogLevel? level = null, string? userId = null)
     {
         var logs = new List<LogEntry>();
+        var connection = _dbManager.GetConnection();
+        if (connection == null)
+            return logs;
+
         var fromDate = from ?? DateTime.UtcNow.AddDays(-7);
         var toDate = to ?? DateTime.UtcNow;
 
-        lock (_lockObject)
+        var query = @"SELECT Timestamp, Level, Message, UserId, InputArray, OutputArray 
+                     FROM logs 
+                     WHERE Timestamp >= @from AND Timestamp <= @to";
+
+        var parameters = new List<SqliteParameter>
         {
-            var currentDate = fromDate.Date;
-            while (currentDate <= toDate.Date)
-            {
-                var logFile = Path.Combine(_logDirectory, string.Format(LogFileNameFormat, currentDate));
-                if (File.Exists(logFile))
-                {
-                    var fileLogs = ReadLogsFromFile(logFile);
-                    logs.AddRange(fileLogs);
-                }
-                currentDate = currentDate.AddDays(1);
-            }
+            new SqliteParameter("@from", fromDate),
+            new SqliteParameter("@to", toDate)
+        };
+
+        if (level != null)
+        {
+            query += " AND Level = @level";
+            parameters.Add(new SqliteParameter("@level", level.ToString()));
         }
 
-        // Фильтрация
-        var filteredLogs = logs.Where(log =>
-            log.Timestamp >= fromDate &&
-            log.Timestamp <= toDate &&
-            (level == null || log.Level == level) &&
-            (userId == null || log.UserId == userId)
-        ).OrderByDescending(log => log.Timestamp).ToList();
-
-        return filteredLogs;
-    }
-
-    private void WriteLogToFile(LogEntry entry)
-    {
-        var logFile = Path.Combine(_logDirectory, string.Format(LogFileNameFormat, entry.Timestamp.Date));
-
-        lock (_lockObject)
+        if (userId != null)
         {
-            var logLine = $"{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff} UTC [{entry.Level}] " +
-                         $"{(entry.UserId != null ? $"[User: {entry.UserId}] " : "")}" +
-                         $"{entry.Message}{Environment.NewLine}";
-
-            File.AppendAllText(logFile, logLine, Encoding.UTF8);
-            
-            // Массивы записываются на отдельной строке для удобного парсинга
-            if (entry.InputArray != null && entry.OutputArray != null)
-            {
-                var arrayLine = $"  Arrays: Input=[{string.Join(", ", entry.InputArray)}] Output=[{string.Join(", ", entry.OutputArray)}]{Environment.NewLine}";
-                File.AppendAllText(logFile, arrayLine, Encoding.UTF8);
-            }
+            query += " AND UserId = @userId";
+            parameters.Add(new SqliteParameter("@userId", userId));
         }
-    }
 
-    private List<LogEntry> ReadLogsFromFile(string filePath)
-    {
-        var logs = new List<LogEntry>();
+        query += " ORDER BY Timestamp DESC";
 
-        if (!File.Exists(filePath))
-            return logs;
-
-        var lines = File.ReadAllLines(filePath);
-        for (int i = 0; i < lines.Length; i++)
+        try
         {
-            var entry = ParseLogLine(lines[i]);
-            if (entry != null)
+            using var command = new SqliteCommand(query, connection);
+            foreach (var param in parameters)
             {
-                // Проверяем, есть ли следующая строка с массивами
-                if (i + 1 < lines.Length && lines[i + 1].Trim().StartsWith("Arrays:"))
+                command.Parameters.Add(param);
+            }
+
+            using var reader = command.ExecuteReader();
+            while (reader.Read())
+            {
+                var entry = new LogEntry
                 {
-                    ParseArraysFromLine(lines[i + 1], entry);
-                    i++;
+                    Timestamp = reader.GetDateTime(0),
+                    Level = Enum.Parse<LogLevel>(reader.GetString(1)),
+                    Message = reader.GetString(2),
+                    UserId = reader.IsDBNull(3) ? null : reader.GetString(3)
+                };
+
+                if (!reader.IsDBNull(4))
+                {
+                    var inputStr = reader.GetString(4);
+                    if (!string.IsNullOrEmpty(inputStr))
+                    {
+                        entry.InputArray = inputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+                    }
                 }
+
+                if (!reader.IsDBNull(5))
+                {
+                    var outputStr = reader.GetString(5);
+                    if (!string.IsNullOrEmpty(outputStr))
+                    {
+                        entry.OutputArray = outputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
+                    }
+                }
+
                 logs.Add(entry);
             }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error reading logs: {ex.Message}");
         }
 
         return logs;
     }
 
-    private void ParseArraysFromLine(string line, LogEntry entry)
-    {
-        try
-        {
-            var inputMatch = System.Text.RegularExpressions.Regex.Match(line, @"Input=\[([^\]]+)\]");
-            var outputMatch = System.Text.RegularExpressions.Regex.Match(line, @"Output=\[([^\]]+)\]");
-
-            if (inputMatch.Success)
-            {
-                var inputStr = inputMatch.Groups[1].Value;
-                entry.InputArray = inputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
-            }
-
-            if (outputMatch.Success)
-            {
-                var outputStr = outputMatch.Groups[1].Value;
-                entry.OutputArray = outputStr.Split(',').Select(s => int.Parse(s.Trim())).ToArray();
-            }
-        }
-        catch
-        {
-        }
-    }
-
-    private LogEntry? ParseLogLine(string line)
-    {
-        try
-        {
-            // Формат: 2024-01-01 12:00:00.000 UTC [INFO] [User: username] message
-            var parts = line.Split(new[] { " UTC " }, StringSplitOptions.None);
-            if (parts.Length != 2)
-                return null;
-
-            var timestampPart = parts[0];
-            var rest = parts[1];
-
-            if (!DateTime.TryParse(timestampPart, out var timestamp))
-                return null;
-
-            var levelMatch = System.Text.RegularExpressions.Regex.Match(rest, @"^\[(INFO|WARNING|ERROR|DEBUG)\]");
-            if (!levelMatch.Success)
-                return null;
-
-            var levelStr = levelMatch.Groups[1].Value;
-            var level = Enum.Parse<LogLevel>(levelStr);
-
-            var userIdMatch = System.Text.RegularExpressions.Regex.Match(rest, @"\[User: ([^\]]+)\]");
-            string? userId = userIdMatch.Success ? userIdMatch.Groups[1].Value : null;
-
-            var messageStart = userIdMatch.Success ? userIdMatch.Index + userIdMatch.Length : levelMatch.Index + levelMatch.Length;
-            var message = rest.Substring(messageStart).Trim();
-
-            return new LogEntry
-            {
-                Timestamp = timestamp,
-                Level = level,
-                Message = message,
-                UserId = userId
-            };
-        }
-        catch
-        {
-            return null;
-        }
-    }
 }
 
 /// <summary>

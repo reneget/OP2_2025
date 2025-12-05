@@ -19,9 +19,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:8080",
-                "http://localhost:3000",
                 "http://127.0.0.1:8080",
-                "http://127.0.0.1:3000"
               )
               .AllowAnyMethod()
               .AllowAnyHeader()
@@ -36,40 +34,18 @@ builder.Services.AddSwaggerGen(c =>
     {
         Title = "Sorting Service API",
         Version = "v1",
-        Description = "API для сортировки массивов методом расчёстки (Comb Sort). " +
-                     "Система предоставляет функционал сортировки массивов целых чисел " +
-                     "с возможностью просмотра логов операций.",
         Contact = new Microsoft.OpenApi.Models.OpenApiContact
         {
             Name = "Sorting Service",
         }
     });
-    
-    // Включить XML комментарии
-    var xmlFile = $"{System.Reflection.Assembly.GetExecutingAssembly().GetName().Name}.xml";
-    var xmlPath = Path.Combine(AppContext.BaseDirectory, xmlFile);
-    if (File.Exists(xmlPath))
-    {
-        c.IncludeXmlComments(xmlPath);
-    }
-    
-    // Добавить поддержку cookie authentication в Swagger
-    c.AddSecurityDefinition("cookieAuth", new Microsoft.OpenApi.Models.OpenApiSecurityScheme
-    {
-        Type = Microsoft.OpenApi.Models.SecuritySchemeType.ApiKey,
-        In = Microsoft.OpenApi.Models.ParameterLocation.Cookie,
-        Name = ".AspNetCore.Cookies",
-        Description = "Cookie-based authentication. Авторизуйтесь через /api/login для получения cookie."
-    });
-    
 });
 
 // Настройка модулей
-var logDirectory = builder.Configuration["Logging:Directory"] ?? "./logs";
 var dbPath = builder.Configuration["Database:Path"] ?? "./data/users.db";
 
-var logManager = new LogManager(logDirectory);
 var dbManager = new DBManager();
+var logManager = new LogManager(dbManager);
 var combSortModule = new CombSortModule();
 
 builder.Services.AddSingleton(logManager);
@@ -105,8 +81,7 @@ app.MapGet("/", () =>
 {
     var swaggerUrl = "/swagger";
     return $"Sorting Service API - Comb Sort\n\n" +
-           $"API Documentation: {swaggerUrl}\n" +
-           $"Open {swaggerUrl} in your browser to view interactive API documentation.";
+           $"API Documentation: {swaggerUrl}\n";
 });
 
 app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServices] CombSortModule sortModule, [FromServices] LogManager logger, HttpContext context) =>

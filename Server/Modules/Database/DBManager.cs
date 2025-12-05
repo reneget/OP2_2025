@@ -58,7 +58,7 @@ public class DBManager
         if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
             return;
 
-        var createTableQuery = @"
+        var createUsersTable = @"
             CREATE TABLE IF NOT EXISTS users (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Login TEXT UNIQUE NOT NULL,
@@ -66,8 +66,28 @@ public class DBManager
                 CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
             )";
 
-        using var command = new SqliteCommand(createTableQuery, _connection);
-        command.ExecuteNonQuery();
+        var createLogsTable = @"
+            CREATE TABLE IF NOT EXISTS logs (
+                Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                Timestamp DATETIME NOT NULL,
+                Level TEXT NOT NULL,
+                Message TEXT NOT NULL,
+                UserId TEXT,
+                InputArray TEXT,
+                OutputArray TEXT,
+                CreatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
+            )";
+
+        using var command1 = new SqliteCommand(createUsersTable, _connection);
+        command1.ExecuteNonQuery();
+
+        using var command2 = new SqliteCommand(createLogsTable, _connection);
+        command2.ExecuteNonQuery();
+    }
+
+    public SqliteConnection? GetConnection()
+    {
+        return _connection?.State == System.Data.ConnectionState.Open ? _connection : null;
     }
 
     public void Disconnect()
