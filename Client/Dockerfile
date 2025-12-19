@@ -1,28 +1,24 @@
-# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 WORKDIR /src
 
-# Copy project files
+# Копируем проект и восстанавливаем зависимости
 COPY Client/Client.csproj Client/
 RUN dotnet restore Client/Client.csproj
 
-# Copy source code
+# Копируем остальной код
 COPY Client/ Client/
-WORKDIR /src/Client
-RUN dotnet build -c Release -o /app/build
 
-# Publish stage
-FROM build AS publish
-RUN dotnet publish -c Release -o /app/publish
+# Публикуем в Release
+RUN dotnet publish Client/Client.csproj -c Release -o /app/publish
 
-# Runtime stage
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS runtime
+FROM mcr.microsoft.com/dotnet/runtime:8.0 AS final
 WORKDIR /app
 
-# Copy published files
-COPY --from=publish /app/publish .
+# URL API сервера (по умолчанию на сервис server в docker-compose)
+ENV SERVER_URL=http://server:5247
 
-EXPOSE 8080
+COPY --from=build /app/publish .
 
+# Консольный клиент (интерактивный)
 ENTRYPOINT ["dotnet", "Client.dll"]
 

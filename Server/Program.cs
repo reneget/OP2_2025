@@ -19,7 +19,7 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(
                 "http://localhost:8080",
-                "http://127.0.0.1:8080",
+                "http://127.0.0.1:8080"
               )
               .AllowAnyMethod()
               .AllowAnyHeader()
@@ -96,16 +96,19 @@ app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServi
             return Results.BadRequest(new { error = "Array cannot be empty" });
         }
 
-        var sortedArray = sortModule.Sort(request.Array, request.Ascending ?? true);
+        var sortResult = sortModule.SortWithMetadata(request.Array, request.Ascending ?? true, request.Gap);
         
         // Сохраняем входной и выходной массивы в лог
-        logger.LogSortOperation($"Sorted array ({request.Array.Length} elements)", request.Array, sortedArray, username);
+        logger.LogSortOperation($"Sorted array ({request.Array.Length} elements)", request.Array, sortResult.SortedArray, username);
         
         return Results.Ok(new SortResponse
         {
             OriginalArray = request.Array,
-            SortedArray = sortedArray,
-            Ascending = request.Ascending ?? true
+            SortedArray = sortResult.SortedArray,
+            Ascending = request.Ascending ?? true,
+            Gap = sortResult.InitialGap,
+            ExecutionTimeMs = sortResult.ExecutionTimeMs,
+            CompletionTime = sortResult.CompletionTime
         });
     }
     catch (Exception ex)
@@ -185,14 +188,21 @@ app.MapPost("/api/signup", ([FromBody] SignupRequest request, [FromServices] DBM
         return Results.BadRequest(new { error = "Login and password are required" });
     }
 
+    // Проверяем, существует ли пользователь
+    if (db.CheckUser(request.Login, request.Password))
+    {
+        logger.Log(ServerLogLevel.WARNING, $"Attempt to register already existing user: {request.Login}", request.Login);
+        return Results.BadRequest(new { error = $"User {request.Login} already exists" });
+    }
+
     if (db.AddUser(request.Login, request.Password))
     {
         logger.Log(ServerLogLevel.INFO, $"User registered: {request.Login}", request.Login);
         return Results.Ok(new { message = $"User {request.Login} registered successfully!" });
     }
 
-    logger.Log(ServerLogLevel.WARNING, $"Failed to register user: {request.Login}");
-    return Results.Problem($"Failed to register user {request.Login}");
+    logger.Log(ServerLogLevel.ERROR, $"Failed to register user due to internal error: {request.Login}", request.Login);
+    return Results.Problem("Internal error while registering user");
 });
 
 app.MapGet("/api/check_user", [Authorize] (HttpContext context, [FromServices] LogManager logger) =>
@@ -227,6 +237,12 @@ public class SortRequest
     /// </summary>
     /// <example>true</example>
     public bool? Ascending { get; set; } = true;
+    
+    /// <summary>
+    /// Пользовательский шаг отбрасывания (опционально)
+    /// </summary>
+    /// <example>5</example>
+    public int? Gap { get; set; }
 }
 
 /// <summary>
@@ -248,6 +264,21 @@ public class SortResponse
     /// Направление сортировки
     /// </summary>
     public bool Ascending { get; set; }
+    
+    /// <summary>
+    /// Шаг отбрасывания
+    /// </summary>
+    public int Gap { get; set; }
+    
+    /// <summary>
+    /// Время выполнения сортировки в миллисекундах
+    /// </summary>
+    public long ExecutionTimeMs { get; set; }
+    
+    /// <summary>
+    /// Дата и время завершения сортировки
+    /// </summary>
+    public DateTime CompletionTime { get; set; }
 }
 
 /// <summary>
