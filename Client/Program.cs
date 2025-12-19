@@ -21,20 +21,15 @@ class Program
     {
         Console.OutputEncoding = Encoding.UTF8;
         
-        // Инициализация директорий
         Directory.CreateDirectory(LogsDirectory);
         Directory.CreateDirectory(Path.GetDirectoryName(SettingsPath)!);
         
-        // Загрузка настроек
         LoadSettings();
         
-        // Инициализация HTTP клиента
         _httpClientModule = new HttpClientModule(ServerUrl, maxRetries: 3, retryDelayMs: 1000);
         
-        // Приветствие
         ShowWelcome();
         
-        // Главный цикл
         bool running = true;
         while (running)
         {
@@ -45,20 +40,20 @@ class Program
             catch (Exception ex)
             {
                 LogError($"Критическая ошибка: {ex.Message}", ex);
-                Console.WriteLine($"\n❌ Произошла ошибка: {ex.Message}");
+                Console.WriteLine($"\nОшибка: {ex.Message}");
                 Console.WriteLine("Нажмите любую клавишу для продолжения...");
                 Console.ReadKey();
             }
         }
         
-        Console.WriteLine("\n👋 До свидания!");
+        Console.WriteLine("\nЗавершение работы.");
     }
 
     static void ShowWelcome()
     {
         Console.Clear();
         Console.WriteLine("═══════════════════════════════════════════════════════════");
-        Console.WriteLine("     🧮 СИСТЕМА СОРТИРОВКИ РАСЧЁСТКОЙ (COMB SORT)");
+        Console.WriteLine("     СИСТЕМА СОРТИРОВКИ РАСЧЁСТКОЙ (COMB SORT)");
         Console.WriteLine("═══════════════════════════════════════════════════════════");
         Console.WriteLine();
         ShowAlgorithmInfo();
@@ -67,7 +62,7 @@ class Program
 
     static void ShowAlgorithmInfo()
     {
-        Console.WriteLine("📖 СПРАВКА ПО АЛГОРИТМУ СОРТИРОВКИ «РАСЧЁСТКОЙ»:");
+        Console.WriteLine("СПРАВКА ПО АЛГОРИТМУ СОРТИРОВКИ «РАСЧЁСТКОЙ»:");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.WriteLine("Алгоритм сортировки расчёсткой (Comb Sort) - это улучшенная");
         Console.WriteLine("версия пузырьковой сортировки, разработанная Влодзимежем");
@@ -90,15 +85,15 @@ class Program
 
     static async Task<bool> MainMenu()
     {
-        Console.WriteLine("\n📋 ГЛАВНОЕ МЕНЮ:");
+        Console.WriteLine("\nГЛАВНОЕ МЕНЮ:");
         Console.WriteLine("───────────────────────────────────────────────────────────");
-        Console.WriteLine("1. 🔐 Вход в систему");
-        Console.WriteLine("2. 📝 Регистрация");
-        Console.WriteLine("3. 🧮 Выполнить сортировку");
-        Console.WriteLine("4. 📊 Просмотр логов");
-        Console.WriteLine("5. ⚙️  Настройки вывода");
-        Console.WriteLine("6. 📖 Показать справку");
-        Console.WriteLine("0. 🚪 Выход");
+        Console.WriteLine("1. Вход в систему");
+        Console.WriteLine("2. Регистрация");
+        Console.WriteLine("3. Выполнить сортировку");
+        Console.WriteLine("4. Просмотр логов");
+        Console.WriteLine("5. Настройки вывода");
+        Console.WriteLine("6. Показать справку");
+        Console.WriteLine("0. Выход");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.Write("Выберите действие: ");
 
@@ -137,14 +132,14 @@ class Program
             case "0":
                 return false;
             default:
-                Console.WriteLine("❌ Неверный выбор. Попробуйте снова.");
+                Console.WriteLine("Неверный выбор. Попробуйте снова.");
                 return true;
         }
     }
 
     static async Task Login()
     {
-        Console.WriteLine("🔐 ВХОД В СИСТЕМУ");
+        Console.WriteLine("ВХОД В СИСТЕМУ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.Write("Логин: ");
         var login = Console.ReadLine()?.Trim();
@@ -153,7 +148,7 @@ class Program
 
         if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
         {
-            Console.WriteLine("❌ Логин и пароль не могут быть пустыми.");
+            Console.WriteLine("Логин и пароль не могут быть пустыми.");
             return;
         }
 
@@ -167,7 +162,6 @@ class Program
 
             if (response.IsSuccessStatusCode)
             {
-                // Сохраняем cookie для последующих запросов
                 _authCookie = HttpClientModule.ExtractCookie(response);
                 if (!string.IsNullOrEmpty(_authCookie))
                 {
@@ -190,29 +184,29 @@ class Program
                     }
                 }
 
-                Console.WriteLine($"✅ {message}");
+                Console.WriteLine($"{message}");
                 Console.WriteLine($"👤 Пользователь: {username}");
             }
             else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
             {
-                Console.WriteLine("❌ Неверный логин или пароль.");
+                Console.WriteLine("Неверный логин или пароль.");
             }
             else
             {
-                Console.WriteLine($"❌ Ошибка входа (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
+                Console.WriteLine($"Ошибка входа (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
             }
         }
         catch (Exception ex)
         {
             LogError($"Ошибка при входе: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка подключения к серверу: {ex.Message}");
+            Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
             Console.WriteLine("Проверьте, что сервер запущен и доступен.");
         }
     }
 
     static async Task Signup()
     {
-        Console.WriteLine("📝 РЕГИСТРАЦИЯ");
+        Console.WriteLine("РЕГИСТРАЦИЯ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.Write("Логин: ");
         var login = Console.ReadLine()?.Trim();
@@ -221,7 +215,7 @@ class Program
 
         if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
         {
-            Console.WriteLine("❌ Логин и пароль не могут быть пустыми.");
+            Console.WriteLine("Логин и пароль не могут быть пустыми.");
             return;
         }
 
@@ -243,7 +237,7 @@ class Program
                     message = msgProp.GetString() ?? message;
                 }
 
-                Console.WriteLine($"✅ {message}");
+                Console.WriteLine($"{message}");
             }
             else
             {
@@ -251,18 +245,18 @@ class Program
                     json.TryGetProperty("error", out var errorProp) &&
                     errorProp.ValueKind == JsonValueKind.String)
                 {
-                    Console.WriteLine($"❌ {errorProp.GetString()}");
+                    Console.WriteLine($"{errorProp.GetString()}");
                 }
                 else
                 {
-                    Console.WriteLine($"❌ Ошибка регистрации (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
+                    Console.WriteLine($"Ошибка регистрации (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
                 }
             }
         }
         catch (Exception ex)
         {
             LogError($"Ошибка при регистрации: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка подключения к серверу: {ex.Message}");
+            Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
         }
     }
 
@@ -270,7 +264,7 @@ class Program
     {
         if (string.IsNullOrEmpty(_authCookie))
         {
-            Console.WriteLine("❌ Вы не авторизованы. Пожалуйста, войдите в систему.");
+            Console.WriteLine("Вы не авторизованы. Пожалуйста, войдите в систему.");
             Console.WriteLine("Нажмите любую клавишу для продолжения...");
             Console.ReadKey();
             return Task.FromResult(false);
@@ -280,10 +274,9 @@ class Program
 
     static async Task PerformSorting()
     {
-        Console.WriteLine("🧮 ВЫПОЛНЕНИЕ СОРТИРОВКИ");
+        Console.WriteLine("ВЫПОЛНЕНИЕ СОРТИРОВКИ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         
-        // Выбор способа ввода данных
         Console.WriteLine("Выберите способ ввода данных:");
         Console.WriteLine("1. Ввод вручную");
         Console.WriteLine("2. Загрузка из файла");
@@ -302,22 +295,20 @@ class Program
         }
         else
         {
-            Console.WriteLine("❌ Неверный выбор.");
+            Console.WriteLine("Неверный выбор.");
             return;
         }
 
         if (array == null || array.Length == 0)
         {
-            Console.WriteLine("❌ Массив не может быть пустым.");
+            Console.WriteLine("Массив не может быть пустым.");
             return;
         }
 
-        // Выбор направления сортировки
         Console.Write("\nНаправление сортировки (1 - по возрастанию, 2 - по убыванию) [1]: ");
         var sortDirection = Console.ReadLine()?.Trim();
         bool ascending = sortDirection != "2";
 
-        // Выбор шага отбрасывания
         Console.Write($"Шаг отбрасывания (Enter для автоматического выбора, рекомендуемый: {(int)(array.Length / 1.3)}): ");
         var gapInput = Console.ReadLine()?.Trim();
         int? gap = null;
@@ -326,7 +317,6 @@ class Program
             gap = gapValue;
         }
 
-        // Выполнение сортировки
         try
         {
             var payload = new
@@ -348,16 +338,14 @@ class Program
                 {
                     DisplaySortResult(result);
                     
-                    // Предложение сохранить в лог
-                    Console.Write("\n💾 Сохранить результат в файл логов? (y/n) [y]: ");
+                    Console.Write("\nСохранить результат в файл логов? (y/n) [y]: ");
                     var saveChoice = Console.ReadLine()?.Trim().ToLower();
                     if (saveChoice != "n")
                     {
                         await SaveToLogFile(result);
                     }
 
-                    // Предложение повторить
-                    Console.Write("\n🔄 Выполнить еще одну сортировку? (y/n) [n]: ");
+                    Console.Write("\nВыполнить еще одну сортировку? (y/n) [n]: ");
                     var repeatChoice = Console.ReadLine()?.Trim().ToLower();
                     if (repeatChoice == "y")
                     {
@@ -366,7 +354,7 @@ class Program
                 }
                 else
                 {
-                    Console.WriteLine("❌ Ошибка сортировки: пустой ответ от сервера.");
+                    Console.WriteLine("Ошибка сортировки: пустой ответ от сервера.");
                 }
             }
             else
@@ -375,18 +363,18 @@ class Program
                     errorJson.TryGetProperty("error", out var errorProp) &&
                     errorProp.ValueKind == JsonValueKind.String)
                 {
-                    Console.WriteLine($"❌ Ошибка сортировки: {errorProp.GetString()}");
+                    Console.WriteLine($"Ошибка сортировки: {errorProp.GetString()}");
                 }
                 else
                 {
-                    Console.WriteLine($"❌ Ошибка сортировки (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
+                    Console.WriteLine($"Ошибка сортировки (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
                 }
             }
         }
         catch (Exception ex)
         {
             LogError($"Ошибка при сортировке: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка подключения к серверу: {ex.Message}");
+            Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
         }
     }
 
@@ -411,7 +399,7 @@ class Program
 
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            Console.WriteLine("❌ Файл не найден или путь указан неверно.");
+            Console.WriteLine("Файл не найден или путь указан неверно.");
             return null;
         }
 
@@ -423,7 +411,7 @@ class Program
         catch (Exception ex)
         {
             LogError($"Ошибка чтения файла: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка чтения файла: {ex.Message}");
+            Console.WriteLine($"Ошибка чтения файла: {ex.Message}");
             return null;
         }
     }
@@ -436,27 +424,27 @@ class Program
         
         if (_displaySettings.ShowOriginalArray)
         {
-            Console.WriteLine($"📥 Исходный массив: [{string.Join(", ", result.OriginalArray)}]");
+            Console.WriteLine($"Исходный массив: [{string.Join(", ", result.OriginalArray)}]");
         }
         
         if (_displaySettings.ShowSortedArray)
         {
-            Console.WriteLine($"📤 Отсортированный массив: [{string.Join(", ", result.SortedArray)}]");
+            Console.WriteLine($"Отсортированный массив: [{string.Join(", ", result.SortedArray)}]");
         }
         
         if (_displaySettings.ShowGap)
         {
-            Console.WriteLine($"🔢 Шаг отбрасывания: {result.Gap}");
+            Console.WriteLine($"Шаг отбрасывания: {result.Gap}");
         }
         
         if (_displaySettings.ShowExecutionTime)
         {
-            Console.WriteLine($"⏱️  Время выполнения: {result.ExecutionTimeMs} мс");
+            Console.WriteLine($"Время выполнения: {result.ExecutionTimeMs} мс");
         }
         
         if (_displaySettings.ShowCompletionTime)
         {
-            Console.WriteLine($"📅 Дата и время завершения: {result.CompletionTime:yyyy-MM-dd HH:mm:ss}");
+            Console.WriteLine($"Дата и время завершения: {result.CompletionTime:yyyy-MM-dd HH:mm:ss}");
         }
         
         Console.WriteLine("═══════════════════════════════════════════════════════════");
@@ -479,22 +467,21 @@ class Program
             var logPath = Path.Combine(LogsDirectory, $"sort_{DateTime.Now:yyyyMMdd_HHmmss}.json");
             var json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
             
-            // Шифруем данные перед сохранением
             var encryptedJson = EncryptionModule.Encrypt(json);
             await File.WriteAllTextAsync(logPath, encryptedJson);
             
-            Console.WriteLine($"✅ Результат сохранен в файл: {logPath}");
+            Console.WriteLine($"Результат сохранен в файл: {logPath}");
         }
         catch (Exception ex)
         {
             LogError($"Ошибка сохранения лога: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка сохранения лога: {ex.Message}");
+            Console.WriteLine($"Ошибка сохранения лога: {ex.Message}");
         }
     }
 
     static async Task ViewLogs()
     {
-        Console.WriteLine("📊 ПРОСМОТР ЛОГОВ");
+        Console.WriteLine("ПРОСМОТР ЛОГОВ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.WriteLine("Выберите источник логов:");
         Console.WriteLine("1. Локальные логи (сохраненные в файлы)");
@@ -514,7 +501,7 @@ class Program
         }
         else
         {
-            Console.WriteLine("❌ Неверный выбор.");
+            Console.WriteLine("Неверный выбор.");
         }
     }
 
@@ -557,7 +544,7 @@ class Program
         }
         else
         {
-            Console.WriteLine("❌ Неверный выбор.");
+            Console.WriteLine("Неверный выбор.");
         }
     }
 
@@ -604,7 +591,7 @@ class Program
                 if (!TryParseJsonElement(responseContent, out var json) ||
                     !json.TryGetProperty("Count", out var cntProp))
                 {
-                    Console.WriteLine("❌ Ответ сервера пуст или некорректен.");
+                    Console.WriteLine("Ответ сервера пуст или некорректен.");
                     return;
                 }
 
@@ -643,13 +630,13 @@ class Program
             }
             else
             {
-                Console.WriteLine($"❌ Ошибка получения логов (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
+                Console.WriteLine($"Ошибка получения логов (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
             }
         }
         catch (Exception ex)
         {
             LogError($"Ошибка при получении логов с сервера: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка подключения к серверу: {ex.Message}");
+            Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
         }
     }
 
@@ -677,22 +664,22 @@ class Program
         catch (Exception ex)
         {
             LogError($"Ошибка чтения лога: {ex.Message}", ex);
-            Console.WriteLine($"❌ Ошибка чтения лога: {ex.Message}");
+            Console.WriteLine($"Ошибка чтения лога: {ex.Message}");
         }
     }
 
     static Task ManageSettings()
     {
-        Console.WriteLine("⚙️  НАСТРОЙКИ ВЫВОДА");
+        Console.WriteLine("НАСТРОЙКИ ВЫВОДА");
         Console.WriteLine("───────────────────────────────────────────────────────────");
         Console.WriteLine("Выберите поля, которые нужно скрыть в результате сортировки:");
         Console.WriteLine();
         
-        Console.WriteLine($"1. Исходный массив: {(_displaySettings.ShowOriginalArray ? "✅" : "❌")}");
-        Console.WriteLine($"2. Отсортированный массив: {(_displaySettings.ShowSortedArray ? "✅" : "❌")}");
-        Console.WriteLine($"3. Шаг отбрасывания: {(_displaySettings.ShowGap ? "✅" : "❌")}");
-        Console.WriteLine($"4. Время выполнения: {(_displaySettings.ShowExecutionTime ? "✅" : "❌")}");
-        Console.WriteLine($"5. Дата и время завершения: {(_displaySettings.ShowCompletionTime ? "✅" : "❌")}");
+        Console.WriteLine($"1. Исходный массив: {(_displaySettings.ShowOriginalArray ? "ВКЛ" : "ВЫКЛ")}");
+        Console.WriteLine($"2. Отсортированный массив: {(_displaySettings.ShowSortedArray ? "ВКЛ" : "ВЫКЛ")}");
+        Console.WriteLine($"3. Шаг отбрасывания: {(_displaySettings.ShowGap ? "ВКЛ" : "ВЫКЛ")}");
+        Console.WriteLine($"4. Время выполнения: {(_displaySettings.ShowExecutionTime ? "ВКЛ" : "ВЫКЛ")}");
+        Console.WriteLine($"5. Дата и время завершения: {(_displaySettings.ShowCompletionTime ? "ВКЛ" : "ВЫКЛ")}");
         Console.WriteLine();
         Console.WriteLine("Введите номера полей для переключения (через пробел), или Enter для выхода:");
         Console.Write("Выбор: ");
@@ -727,7 +714,7 @@ class Program
         }
 
         SaveSettings();
-        Console.WriteLine("✅ Настройки сохранены.");
+        Console.WriteLine("Настройки сохранены.");
         return Task.CompletedTask;
     }
 
@@ -858,12 +845,10 @@ class Program
         }
         catch
         {
-            // Игнорируем ошибки логирования
         }
     }
 }
 
-// Модели данных
 public class SortResponse
 {
     public int[] OriginalArray { get; set; } = new int[0];

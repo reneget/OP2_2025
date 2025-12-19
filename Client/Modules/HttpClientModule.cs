@@ -4,9 +4,6 @@ using System.Text.Json;
 
 namespace Client.Modules;
 
-/// <summary>
-/// Модуль для работы с HTTP запросами с поддержкой повторных попыток
-/// </summary>
 public class HttpClientModule
 {
     private readonly HttpClient _httpClient;
@@ -22,9 +19,6 @@ public class HttpClientModule
         _retryDelayMs = retryDelayMs;
     }
 
-    /// <summary>
-    /// Выполняет HTTP запрос с повторными попытками
-    /// </summary>
     public async Task<HttpResponseMessage> ExecuteWithRetryAsync(
         Func<HttpRequestMessage> requestFactory,
         CancellationToken cancellationToken = default)
@@ -36,12 +30,10 @@ public class HttpClientModule
         {
             try
             {
-                // Создаем новый запрос на каждую попытку, чтобы избежать повторного использования
                 using var request = requestFactory();
                 var response = await _httpClient.SendAsync(request, cancellationToken);
                 lastResponse = response;
 
-                // Если успешный ответ или ошибка, которая не требует повтора
                 if (response.IsSuccessStatusCode ||
                     response.StatusCode == HttpStatusCode.Unauthorized ||
                     response.StatusCode == HttpStatusCode.BadRequest ||
@@ -51,7 +43,6 @@ public class HttpClientModule
                     return response;
                 }
 
-                // Для других ошибок пробуем повторить
                 if (attempt < _maxRetries)
                 {
                     await Task.Delay(_retryDelayMs * attempt, cancellationToken);
@@ -75,7 +66,6 @@ public class HttpClientModule
             }
         }
 
-        // Если есть ответ сервера, возвращаем его, чтобы вызвать понятное сообщение об ошибке
         if (lastResponse != null)
         {
             return lastResponse;
@@ -84,9 +74,6 @@ public class HttpClientModule
         throw lastException ?? new Exception("Не удалось выполнить запрос после всех попыток");
     }
 
-    /// <summary>
-    /// Устанавливает cookie для авторизации
-    /// </summary>
     public void SetAuthCookie(string cookie)
     {
         _httpClient.DefaultRequestHeaders.Remove("Cookie");
@@ -96,17 +83,11 @@ public class HttpClientModule
         }
     }
 
-    /// <summary>
-    /// Очищает cookie авторизации
-    /// </summary>
     public void ClearAuthCookie()
     {
         _httpClient.DefaultRequestHeaders.Remove("Cookie");
     }
 
-    /// <summary>
-    /// Извлекает cookie из ответа
-    /// </summary>
     public static string? ExtractCookie(HttpResponseMessage response)
     {
         if (response.Headers.Contains("Set-Cookie"))
