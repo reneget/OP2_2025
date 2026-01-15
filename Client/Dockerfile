@@ -1,4 +1,4 @@
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
 # Копируем проект и восстанавливаем зависимости
@@ -11,7 +11,7 @@ COPY Client/ Client/
 # Публикуем в Release
 RUN dotnet publish Client/Client.csproj -c Release -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:8.0 AS final
+FROM mcr.microsoft.com/dotnet/runtime:9.0 AS final
 WORKDIR /app
 
 # URL API сервера (по умолчанию на сервис server в docker-compose)

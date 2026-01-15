@@ -1,7 +1,6 @@
-using System.Net.Http;
+using System.Net;
 using System.Text;
 using System.Text.Json;
-using System.Security.Cryptography;
 using Client.Modules;
 
 namespace Client;
@@ -17,7 +16,7 @@ class Program
     private static string? _authCookie;
     private static DisplaySettings _displaySettings = new();
 
-    static async Task Main(string[] args)
+    static void Main(string[] args)
     {
         Console.OutputEncoding = Encoding.UTF8;
         
@@ -26,7 +25,7 @@ class Program
         
         LoadSettings();
         
-        _httpClientModule = new HttpClientModule(ServerUrl, maxRetries: 3, retryDelayMs: 1000);
+        _httpClientModule = new HttpClientModule(ServerUrl);
         
         ShowWelcome();
         
@@ -35,7 +34,7 @@ class Program
         {
             try
             {
-                running = await MainMenu();
+                running = MainMenu();
             }
             catch (Exception ex)
             {
@@ -83,7 +82,7 @@ class Program
         Console.WriteLine("───────────────────────────────────────────────────────────");
     }
 
-    static async Task<bool> MainMenu()
+    static bool MainMenu()
     {
         Console.WriteLine("\nГЛАВНОЕ МЕНЮ:");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -103,25 +102,25 @@ class Program
         switch (choice)
         {
             case "1":
-                await Login();
+                Login();
                 return true;
             case "2":
-                await Signup();
+                Signup();
                 return true;
             case "3":
-                if (await CheckAuth())
+                if (CheckAuth())
                 {
-                    await PerformSorting();
+                    PerformSorting();
                 }
                 return true;
             case "4":
-                if (await CheckAuth())
+                if (CheckAuth())
                 {
-                    await ViewLogs();
+                    ViewLogs();
                 }
                 return true;
             case "5":
-                await ManageSettings();
+                ManageSettings();
                 return true;
             case "6":
                 ShowAlgorithmInfo();
@@ -137,7 +136,7 @@ class Program
         }
     }
 
-    static async Task Login()
+    static void Login()
     {
         Console.WriteLine("ВХОД В СИСТЕМУ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -155,10 +154,11 @@ class Program
         try
         {
             var payload = new { login, password };
-            var response = await _httpClientModule!.ExecuteWithRetryAsync(() =>
+            
+            var response = _httpClientModule!.Execute(() =>
                 CreateJsonRequest(HttpMethod.Post, "/api/login", payload));
             
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = response.Content.ReadAsStringAsync().Result;
 
             if (response.IsSuccessStatusCode)
             {
@@ -187,7 +187,7 @@ class Program
                 Console.WriteLine($"{message}");
                 Console.WriteLine($"👤 Пользователь: {username}");
             }
-            else if (response.StatusCode == System.Net.HttpStatusCode.Unauthorized)
+            else if (response.StatusCode == HttpStatusCode.Unauthorized)
             {
                 Console.WriteLine("Неверный логин или пароль.");
             }
@@ -204,7 +204,7 @@ class Program
         }
     }
 
-    static async Task Signup()
+    static void Signup()
     {
         Console.WriteLine("РЕГИСТРАЦИЯ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -222,9 +222,9 @@ class Program
         try
         {
             var payload = new { login, password };
-            var response = await _httpClientModule!.ExecuteWithRetryAsync(() =>
+            var response = _httpClientModule!.Execute(() =>
                 CreateJsonRequest(HttpMethod.Post, "/api/signup", payload));
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = response.Content.ReadAsStringAsync().Result;
 
             if (response.IsSuccessStatusCode)
             {
@@ -260,19 +260,19 @@ class Program
         }
     }
 
-    static Task<bool> CheckAuth()
+    static bool CheckAuth()
     {
         if (string.IsNullOrEmpty(_authCookie))
         {
             Console.WriteLine("Вы не авторизованы. Пожалуйста, войдите в систему.");
             Console.WriteLine("Нажмите любую клавишу для продолжения...");
             Console.ReadKey();
-            return Task.FromResult(false);
+            return false;
         }
-        return Task.FromResult(true);
+        return true;
     }
 
-    static async Task PerformSorting()
+    static void PerformSorting()
     {
         Console.WriteLine("ВЫПОЛНЕНИЕ СОРТИРОВКИ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -287,11 +287,11 @@ class Program
 
         if (inputChoice == "1")
         {
-            array = await InputArrayManually();
+            array = InputArrayManually();
         }
         else if (inputChoice == "2")
         {
-            array = await LoadArrayFromFile();
+            array = LoadArrayFromFile();
         }
         else
         {
@@ -326,9 +326,9 @@ class Program
                 gap = gap.HasValue ? gap : null
             };
 
-            var response = await _httpClientModule!.ExecuteWithRetryAsync(() =>
+            var response = _httpClientModule!.Execute(() =>
                 CreateJsonRequest(HttpMethod.Post, "/api/sort", payload));
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = response.Content.ReadAsStringAsync().Result;
 
             if (response.IsSuccessStatusCode)
             {
@@ -342,14 +342,14 @@ class Program
                     var saveChoice = Console.ReadLine()?.Trim().ToLower();
                     if (saveChoice != "n")
                     {
-                        await SaveToLogFile(result);
+                        SaveToLogFile(result);
                     }
 
                     Console.Write("\nВыполнить еще одну сортировку? (y/n) [n]: ");
                     var repeatChoice = Console.ReadLine()?.Trim().ToLower();
                     if (repeatChoice == "y")
                     {
-                        await PerformSorting();
+                        PerformSorting();
                     }
                 }
                 else
@@ -378,7 +378,7 @@ class Program
         }
     }
 
-    static Task<int[]?> InputArrayManually()
+    static int[]? InputArrayManually()
     {
         Console.WriteLine("\nВведите массив чисел через пробел или запятую:");
         Console.Write("Массив: ");
@@ -386,13 +386,13 @@ class Program
 
         if (string.IsNullOrEmpty(input))
         {
-            return Task.FromResult<int[]?>(null);
+            return null;
         }
 
-        return Task.FromResult<int[]?>(ValidationModule.ValidateArray(input));
+        return ValidationModule.ValidateArray(input);
     }
 
-    static async Task<int[]?> LoadArrayFromFile()
+    static int[]? LoadArrayFromFile()
     {
         Console.Write("\nВведите абсолютный путь к файлу: ");
         var filePath = Console.ReadLine()?.Trim();
@@ -405,7 +405,7 @@ class Program
 
         try
         {
-            var content = await File.ReadAllTextAsync(filePath);
+            var content = File.ReadAllText(filePath);
             return ValidationModule.ValidateArray(content);
         }
         catch (Exception ex)
@@ -450,7 +450,7 @@ class Program
         Console.WriteLine("═══════════════════════════════════════════════════════════");
     }
 
-    static async Task SaveToLogFile(SortResponse result)
+    static void SaveToLogFile(SortResponse result)
     {
         try
         {
@@ -466,9 +466,7 @@ class Program
 
             var logPath = Path.Combine(LogsDirectory, $"sort_{DateTime.Now:yyyyMMdd_HHmmss}.json");
             var json = JsonSerializer.Serialize(logEntry, new JsonSerializerOptions { WriteIndented = true });
-            
-            var encryptedJson = EncryptionModule.Encrypt(json);
-            await File.WriteAllTextAsync(logPath, encryptedJson);
+            File.WriteAllText(logPath, json);
             
             Console.WriteLine($"Результат сохранен в файл: {logPath}");
         }
@@ -479,7 +477,7 @@ class Program
         }
     }
 
-    static async Task ViewLogs()
+    static void ViewLogs()
     {
         Console.WriteLine("ПРОСМОТР ЛОГОВ");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -493,11 +491,11 @@ class Program
 
         if (sourceChoice == "1")
         {
-            await ViewLocalLogs();
+            ViewLocalLogs();
         }
         else if (sourceChoice == "2")
         {
-            await ViewServerLogs();
+            ViewServerLogs();
         }
         else
         {
@@ -505,7 +503,7 @@ class Program
         }
     }
 
-    static async Task ViewLocalLogs()
+    static void ViewLocalLogs()
     {
         var logFiles = Directory.GetFiles(LogsDirectory, "sort_*.json").OrderByDescending(f => f).ToList();
         
@@ -535,12 +533,12 @@ class Program
         {
             foreach (var logFile in logFiles)
             {
-                await DisplayLogFile(logFile);
+                DisplayLogFile(logFile);
             }
         }
         else if (int.TryParse(choice, out var index) && index > 0 && index <= logFiles.Count)
         {
-            await DisplayLogFile(logFiles[index - 1]);
+            DisplayLogFile(logFiles[index - 1]);
         }
         else
         {
@@ -548,7 +546,7 @@ class Program
         }
     }
 
-    static async Task ViewServerLogs()
+    static void ViewServerLogs()
     {
         try
         {
@@ -582,9 +580,9 @@ class Program
             
             url = url.TrimEnd('&', '?');
 
-            var response = await _httpClientModule!.ExecuteWithRetryAsync(() =>
+            var response = _httpClientModule!.Execute(() =>
                 new HttpRequestMessage(HttpMethod.Get, url));
-            var responseContent = await response.Content.ReadAsStringAsync();
+            var responseContent = response.Content.ReadAsStringAsync().Result;
 
             if (response.IsSuccessStatusCode)
             {
@@ -640,13 +638,11 @@ class Program
         }
     }
 
-    static async Task DisplayLogFile(string filePath)
+    static void DisplayLogFile(string filePath)
     {
         try
         {
-            var encryptedContent = await File.ReadAllTextAsync(filePath);
-            var decryptedContent = EncryptionModule.Decrypt(encryptedContent);
-            var logEntry = JsonSerializer.Deserialize<LogEntry>(decryptedContent);
+            var logEntry = JsonSerializer.Deserialize<LogEntry>(File.ReadAllText(filePath));
 
             if (logEntry != null)
             {
@@ -660,6 +656,10 @@ class Program
                 Console.WriteLine($"Направление: {(logEntry.Ascending ? "по возрастанию" : "по убыванию")}");
                 Console.WriteLine("───────────────────────────────────────────────────────────");
             }
+            else
+            {
+                Console.WriteLine("Файл логов пуст");
+            }
         }
         catch (Exception ex)
         {
@@ -668,7 +668,7 @@ class Program
         }
     }
 
-    static Task ManageSettings()
+    static void ManageSettings()
     {
         Console.WriteLine("НАСТРОЙКИ ВЫВОДА");
         Console.WriteLine("───────────────────────────────────────────────────────────");
@@ -687,7 +687,7 @@ class Program
         var input = Console.ReadLine()?.Trim();
         if (string.IsNullOrEmpty(input))
         {
-            return Task.CompletedTask;
+            return;
         }
 
         var choices = input.Split(' ', StringSplitOptions.RemoveEmptyEntries);
@@ -715,7 +715,6 @@ class Program
 
         SaveSettings();
         Console.WriteLine("Настройки сохранены.");
-        return Task.CompletedTask;
     }
 
     static void LoadSettings()
