@@ -55,8 +55,6 @@ class Program
         Console.WriteLine("     СИСТЕМА СОРТИРОВКИ РАСЧЁСТКОЙ (COMB SORT)");
         Console.WriteLine("═══════════════════════════════════════════════════════════");
         Console.WriteLine();
-        ShowAlgorithmInfo();
-        Console.WriteLine();
     }
 
     static void ShowAlgorithmInfo()
