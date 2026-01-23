@@ -13,17 +13,14 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme).AddCookie();
 builder.Services.AddAuthorization();
 builder.Services.AddControllers();
+
 builder.Services.AddCors(options =>
 {
-    options.AddDefaultPolicy(policy =>
+    options.AddPolicy("AllowAll", policy =>
     {
-        policy.WithOrigins(
-                "http://localhost:8080",
-                "http://127.0.0.1:8080"
-              )
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        policy.AllowAnyOrigin()
+            .AllowAnyMethod()
+            .AllowAnyHeader();
     });
 });
 
@@ -41,14 +38,13 @@ builder.Services.AddSwaggerGen(c =>
     });
 });
 
-// Настройка модулей
 var dbPath = builder.Configuration["Database:Path"] ?? "./data/users.db";
 
 var dbManager = new DBManager();
 var logManager = new LogManager(dbManager);
 var combSortModule = new CombSortModule();
 
-builder.Services.AddSingleton(logManager);
+builder.Services.AddScoped<LogManager>();
 builder.Services.AddSingleton(dbManager);
 builder.Services.AddSingleton(combSortModule);
 
@@ -71,11 +67,8 @@ if (!dbManager.ConnectToDB(dbPath))
 {
     logManager.Log(ServerLogLevel.ERROR, $"Failed to connect to database at {dbPath}");
     Console.WriteLine($"Failed to connect to database at {dbPath}");
-    Console.WriteLine("Shutdown!");
     return;
 }
-
-logManager.Log(ServerLogLevel.INFO, "Server started successfully");
 
 app.MapGet("/", () => 
 {
@@ -119,13 +112,13 @@ app.MapPost("/api/sort", [Authorize] ([FromBody] SortRequest request, [FromServi
 });
 
 app.MapGet("/api/logs", [Authorize] (
-    [FromQuery] DateTime? from,
-    [FromQuery] DateTime? to,
+    [FromQuery] string? userId,
     [FromQuery] string? level,
     [FromServices] LogManager logger,
     HttpContext context) =>
 {
-    var username = context.User.Identity?.Name ?? "unknown";
+    // Используем userId из query параметра или текущего пользователя
+    var user = userId ?? context.User.Identity?.Name ?? "unknown";
     
     try
     {
@@ -135,9 +128,10 @@ app.MapGet("/api/logs", [Authorize] (
             logLevel = parsedLevel;
         }
 
-        var logs = logger.GetLogs(from, to, logLevel, username);
+        // Передаем user как userId
+        var logs = logger.GetLogs(user, logLevel);
         
-        logger.Log(ServerLogLevel.INFO, $"Retrieved {logs.Count} log entries", username);
+        logger.Log(ServerLogLevel.INFO, $"Retrieved {logs.Count} log entries", user);
         
         return Results.Ok(new
         {
@@ -155,7 +149,7 @@ app.MapGet("/api/logs", [Authorize] (
     }
     catch (Exception ex)
     {
-        logger.Log(ServerLogLevel.ERROR, $"Error retrieving logs: {ex.Message}", username);
+        logger.Log(ServerLogLevel.ERROR, $"Error retrieving logs: {ex.Message}", user);
         return Results.Problem($"Error retrieving logs: {ex.Message}");
     }
 });
@@ -217,12 +211,13 @@ app.MapGet("/api/check_user", [Authorize] (HttpContext context, [FromServices] L
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {
-    logManager.Log(ServerLogLevel.INFO, "Server is shutting down");
     dbManager.Disconnect();
 });
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? builder.Configuration["Server:Port"] ?? "5247";
-app.Run($"http://0.0.0.0:{port}");
+app.Run($"http://localhost:{port}");
+
+
 
 public class SortRequest
 {

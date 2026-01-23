@@ -95,7 +95,7 @@ class Program
         Console.Write("Выберите действие: ");
 
         var choice = Console.ReadLine()?.Trim();
-        Console.WriteLine();
+        Console.Clear();
 
         switch (choice)
         {
@@ -548,61 +548,40 @@ class Program
     {
         try
         {
-            Console.WriteLine("Фильтры для просмотра логов:");
-            Console.Write("Начальная дата (yyyy-MM-dd, Enter - пропустить): ");
-            var fromInput = Console.ReadLine()?.Trim();
-            DateTime? from = null;
-            if (!string.IsNullOrEmpty(fromInput) && DateTime.TryParse(fromInput, out var fromDate))
-            {
-                from = fromDate;
-            }
-
-            Console.Write("Конечная дата (yyyy-MM-dd, Enter - пропустить): ");
-            var toInput = Console.ReadLine()?.Trim();
-            DateTime? to = null;
-            if (!string.IsNullOrEmpty(toInput) && DateTime.TryParse(toInput, out var toDate))
-            {
-                to = toDate;
-            }
-
+            Console.WriteLine("Фильтр для просмотра логов:");
             Console.Write("Уровень лога (INFO, WARNING, ERROR, Enter - все): ");
             var levelInput = Console.ReadLine()?.Trim();
 
             var url = "/api/logs?";
-            if (from.HasValue)
-                url += $"from={from.Value:yyyy-MM-ddTHH:mm:ssZ}&";
-            if (to.HasValue)
-                url += $"to={to.Value:yyyy-MM-ddTHH:mm:ssZ}&";
-            if (!string.IsNullOrEmpty(levelInput))
-                url += $"level={levelInput}&";
             
-            url = url.TrimEnd('&', '?');
+            if (!string.IsNullOrEmpty(levelInput))
+                url += $"level={levelInput}";
 
-            var response = _httpClientModule!.Execute(() =>
+            var response =  _httpClientModule!.Execute(() =>
                 new HttpRequestMessage(HttpMethod.Get, url));
             var responseContent = response.Content.ReadAsStringAsync().Result;
 
             if (response.IsSuccessStatusCode)
             {
                 if (!TryParseJsonElement(responseContent, out var json) ||
-                    !json.TryGetProperty("Count", out var cntProp))
+                    !json.TryGetProperty("count", out var cntProp))
                 {
                     Console.WriteLine("Ответ сервера пуст или некорректен.");
                     return;
                 }
 
                 var count = cntProp.GetInt32();
-                var logs = json.GetProperty("Logs");
+                var logs = json.GetProperty("logs");
 
                 Console.WriteLine($"\nНайдено логов на сервере: {count}");
                 Console.WriteLine("───────────────────────────────────────────────────────────");
 
                 foreach (var log in logs.EnumerateArray())
                 {
-                    var timestamp = log.GetProperty("Timestamp").GetDateTime();
-                    var level = log.GetProperty("Level").GetString();
-                    var message = log.GetProperty("Message").GetString();
-                    var userId = log.TryGetProperty("UserId", out var uid) ? uid.GetString() : "unknown";
+                    var timestamp = log.GetProperty("timestamp").GetDateTime();
+                    var level = log.GetProperty("level").GetString();
+                    var message = log.GetProperty("message").GetString();
+                    var userId = log.TryGetProperty("userId", out var uid) ? uid.GetString() : "unknown";
 
                     Console.WriteLine($"Дата и время: {timestamp:yyyy-MM-dd HH:mm:ss}");
                     Console.WriteLine($"Уровень: {level}");
