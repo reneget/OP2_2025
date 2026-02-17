@@ -1,31 +1,24 @@
-using System.IO.Pipelines;
 using System.Net;
 using System.Text;
 using System.Text.Json;
+using Xunit;
 using Test.Modules;
 
-namespace Test;
+namespace Test.Tests.Api;
 
-public class Program
+public class ApiTests : IDisposable
 {
-    private static readonly string ServerUrl =
-        Environment.GetEnvironmentVariable("SERVER_URL") ?? "http://localhost:5247";
+    private readonly HttpClientModule _httpClientModule;
+    private readonly string _serverUrl;
+    private string? _authCookie;
 
-    private static readonly string LogsDirectory =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SortingClient", "logs");
+    public ApiTests()
+    {
+        _serverUrl = Environment.GetEnvironmentVariable("SERVER_URL") ?? "http://localhost:5247";
+        _httpClientModule = new HttpClientModule(_serverUrl);
+    }
 
-    private static readonly string SettingsPath =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SortingClient",
-            "settings.json");
-
-    private static readonly string ErrorLogPath =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "SortingClient",
-            "error.log");
-
-    private static HttpClientModule? _httpClientModule;
-    private static string? _authCookie;
-
-    public static string Login(string login, string password)
+    private string Login(string login, string password)
     {
         if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
         {
@@ -35,8 +28,7 @@ public class Program
         try
         {
             var payload = new { login, password };
-
-            var response = _httpClientModule!.Execute(() =>
+            var response = _httpClientModule.Execute(() =>
                 CreateJsonRequest(HttpMethod.Post, "/api/login", payload));
 
             var responseContent = response.Content.ReadAsStringAsync().Result;
@@ -75,7 +67,6 @@ public class Program
         }
         catch (Exception ex)
         {
-            LogError($"Ошибка при входе: {ex.Message}", ex);
             Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
             Console.WriteLine("Проверьте, что сервер запущен и доступен.");
         }
@@ -83,7 +74,7 @@ public class Program
         return "ok";
     }
 
-    public string Signup(string login, string password)
+    private string Signup(string login, string password)
     {
         if (string.IsNullOrEmpty(login) || string.IsNullOrEmpty(password))
         {
@@ -93,7 +84,7 @@ public class Program
         try
         {
             var payload = new { login, password };
-            var response = _httpClientModule!.Execute(() =>
+            var response = _httpClientModule.Execute(() =>
                 CreateJsonRequest(HttpMethod.Post, "/api/signup", payload));
             var responseContent = response.Content.ReadAsStringAsync().Result;
 
@@ -118,33 +109,17 @@ public class Program
                 {
                     return $"{errorProp.GetString()}";
                 }
-                else
-                {
-                    Console.WriteLine(
-                        $"Ошибка регистрации (HTTP {(int)response.StatusCode}): {DescribeResponseText(responseContent)}");
-                }
             }
         }
         catch (Exception ex)
         {
-            LogError($"Ошибка при регистрации: {ex.Message}", ex);
             Console.WriteLine($"Ошибка подключения к серверу: {ex.Message}");
         }
 
         return "Регистрация успешно";
     }
 
-    static bool CheckAuth()
-    {
-        if (string.IsNullOrEmpty(_authCookie))
-        {
-            return false;
-        }
-
-        return true;
-    }
-    
-    static string PerformSorting(int[] array)
+    private string PerformSorting(int[] array)
     {
         if (array == null || array.Length == 0)
         {
@@ -153,8 +128,7 @@ public class Program
         return "1 2 3";
     }
 
-
-    static HttpRequestMessage CreateJsonRequest(HttpMethod method, string url, object payload)
+    private HttpRequestMessage CreateJsonRequest(HttpMethod method, string url, object payload)
     {
         var json = JsonSerializer.Serialize(payload);
         return new HttpRequestMessage(method, url)
@@ -163,27 +137,7 @@ public class Program
         };
     }
 
-    static T? DeserializeOrDefault<T>(string? content, bool caseInsensitive = false) where T : class
-    {
-        if (string.IsNullOrWhiteSpace(content))
-            return default;
-
-        try
-        {
-            var options = new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = caseInsensitive
-            };
-            return JsonSerializer.Deserialize<T>(content, options);
-        }
-        catch (Exception ex)
-        {
-            LogError($"Ошибка парсинга JSON: {ex.Message}. Контент: {DescribeResponseText(content)}");
-            return default;
-        }
-    }
-
-    static bool TryParseJsonElement(string? content, out JsonElement element)
+    private bool TryParseJsonElement(string? content, out JsonElement element)
     {
         element = default;
 
@@ -196,40 +150,88 @@ public class Program
             element = doc.RootElement.Clone();
             return true;
         }
-        catch (Exception ex)
+        catch
         {
-            LogError($"Ошибка парсинга JSON (JsonElement): {ex.Message}. Контент: {DescribeResponseText(content)}");
             return false;
         }
     }
 
-    static string DescribeResponseText(string? content)
+    [Fact]
+    public void Login_WithExistingAccount_ReturnsOk()
     {
-        if (string.IsNullOrWhiteSpace(content))
-            return "<пустой ответ>";
-        var trimmed = content.Trim();
-        return trimmed.Length > 500 ? trimmed.Substring(0, 500) + "..." : trimmed;
+        // Arrange
+        string login = "test";
+        string password = "test";
+
+        // Act
+        string result = Login(login, password);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("ok", result);
     }
 
-    static void LogError(string message, Exception? ex = null)
+    [Fact]
+    public void Login_WithEmptyCredentials_ReturnsValidationError()
     {
-        try
-        {
-            var logMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}";
-            if (ex != null)
-            {
-                logMessage += $"\n{ex}";
-            }
+        // Arrange
+        string login = "";
+        string password = "";
 
-            logMessage += "\n" + new string('-', 80) + "\n";
+        // Act
+        string result = Login(login, password);
 
-            File.AppendAllText(ErrorLogPath, logMessage);
-        }
-        catch
-        {
-        }
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Логин и пароль не могут быть пустыми.", result);
     }
 
+    [Fact]
+    public void Signup_WithEmptyCredentials_ReturnsValidationError()
+    {
+        // Arrange
+        string login = "";
+        string password = "";
 
+        // Act
+        string result = Signup(login, password);
 
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Логин и пароль не могут быть пустыми.", result);
+    }
+
+    [Fact]
+    public void Signup_WithNewAccount_ReturnsSuccess()
+    {
+        // Arrange
+        string login = Random.Shared.Next().ToString("X8");
+        string password = "signuptest";
+
+        // Act
+        string result = Signup(login, password);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Регистрация успешно", result);
+    }
+
+    [Fact]
+    public void PerformSorting_WithEmptyArray_ReturnsValidationError()
+    {
+        // Arrange
+        int[] array = [];
+
+        // Act
+        string result = PerformSorting(array);
+
+        // Assert
+        Assert.NotNull(result);
+        Assert.Equal("Массив не может быть пустым.", result);
+    }
+
+    public void Dispose()
+    {
+        _httpClientModule?.Dispose();
+    }
 }
