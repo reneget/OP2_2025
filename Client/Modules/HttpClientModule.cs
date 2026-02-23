@@ -11,7 +11,7 @@ public class HttpClientModule : IDisposable
         _httpClient = new HttpClient
         {
             BaseAddress = new Uri(baseUrl),
-            Timeout = TimeSpan.FromSeconds(10)
+            Timeout = TimeSpan.FromSeconds(30)
         };
     }
 

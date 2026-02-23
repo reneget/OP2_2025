@@ -66,19 +66,25 @@ public class LogManager
         }
     }
 
-    public List<LogEntry> GetLogs(string?  userId = null, LogLevel? level = null)
+    public List<LogEntry> GetLogs(DateTime? from = null, DateTime? to = null, LogLevel? level = null, string? userId = null)
     {
         var logs = new List<LogEntry>();
         var connection = _dbManager.GetConnection();
         if (connection == null)
             return logs;
 
+        var fromDate = from ?? DateTime.UtcNow.AddDays(-7);
+        var toDate = to ?? DateTime.UtcNow;
 
         var query = @"SELECT Timestamp, Level, Message, UserId, InputArray, OutputArray 
-                  FROM logs 
-                  WHERE 1=1";
+                     FROM logs 
+                     WHERE Timestamp >= @from AND Timestamp <= @to";
 
-        var parameters = new List<SqliteParameter>();
+        var parameters = new List<SqliteParameter>
+        {
+            new SqliteParameter("@from", fromDate),
+            new SqliteParameter("@to", toDate)
+        };
 
         if (level != null)
         {

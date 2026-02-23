@@ -9,12 +9,19 @@ namespace Server.Modules.Database;
 public class LogDBManager
 {
     private SqliteConnection? _connection = null;
+
+    /// <summary>
+    /// Подключение к базе данных логов
+    /// </summary>
+    /// <param name="path">Путь к файлу базы данных</param>
+    /// <returns>true если подключение успешно, иначе false</returns>
     public bool ConnectToDB(string path)
     {
         Console.WriteLine("Connecting to logs database...");
 
         try
         {
+            // Создаём директорию для БД, если её нет
             var dbDirectory = Path.GetDirectoryName(path);
             if (!string.IsNullOrEmpty(dbDirectory) && !Directory.Exists(dbDirectory))
             {
@@ -29,7 +36,8 @@ public class LogDBManager
                 Console.WriteLine("Failed to open logs database!");
                 return false;
             }
-            
+
+            // Создаём таблицу логов, если её нет
             InitializeDatabase();
         }
         catch (Exception exp)
@@ -41,13 +49,16 @@ public class LogDBManager
         Console.WriteLine("Logs database connected successfully!");
         return true;
     }
-    
+
+    /// <summary>
+    /// Инициализация структуры базы данных
+    /// </summary>
     private void InitializeDatabase()
     {
         if (_connection == null || _connection.State != System.Data.ConnectionState.Open)
             return;
 
-        var createTableQuery = """
+        var createTableQuery = @"
             CREATE TABLE IF NOT EXISTS logs (
                 Id INTEGER PRIMARY KEY AUTOINCREMENT,
                 Timestamp DATETIME NOT NULL,
@@ -62,7 +73,7 @@ public class LogDBManager
             CREATE INDEX IF NOT EXISTS idx_logs_timestamp ON logs(Timestamp);
             CREATE INDEX IF NOT EXISTS idx_logs_level ON logs(Level);
             CREATE INDEX IF NOT EXISTS idx_logs_userid ON logs(UserId);
-        """;
+        ";
 
         using var command = new SqliteCommand(createTableQuery, _connection);
         command.ExecuteNonQuery();
