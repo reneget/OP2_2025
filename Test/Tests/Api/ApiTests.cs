@@ -157,7 +157,7 @@ public class ApiTests : IDisposable
     }
 
     [Fact]
-    public void Login_WithExistingAccount_ReturnsOk()
+    public void Login_WithExistingAccount_ReturnsSuccessful()
     {
         // Arrange
         string login = "test";
@@ -168,7 +168,7 @@ public class ApiTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("ok", result);
+        Assert.Equal("Login successful", result);
     }
 
     [Fact]
@@ -213,7 +213,7 @@ public class ApiTests : IDisposable
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal("Регистрация успешно", result);
+        Assert.Equal($"User {login} registered successfully!", result);
     }
 
     [Fact]
