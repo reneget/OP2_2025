@@ -221,6 +221,8 @@ app.Lifetime.ApplicationStopping.Register(() =>
     dbManager.Disconnect();
 });
 
+
+
 var port = Environment.GetEnvironmentVariable("PORT") ?? builder.Configuration["Server:Port"] ?? "5247";
 app.Run($"http://0.0.0.0:{port}");
 
@@ -316,4 +318,3 @@ public class SignupRequest
     /// <example>securepassword</example>
     public string Password { get; set; } = string.Empty;
 }
-
